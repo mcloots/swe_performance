@@ -1,6 +1,6 @@
 # Workshop: performance testing and caching with Docker and k6
 
-Test a standalone lesson catalogue with **GET records** and **POST records**. Docker Compose runs PostgreSQL, a .NET 10 API and k6. Distinguish load, stress, spike and soak testing; compare latency, correctness, resources and caching, then check freshness and independent API caches. This repository is independent of ITF Pulse.
+Test a standalone lesson catalogue with **GET records** and **POST records**. Docker Compose runs PostgreSQL, a .NET 10 API and k6. Distinguish load, stress, spike and soak testing; compare latency, correctness, resources and caching, then check freshness and independent API caches.
 
 Use the standalone repository **[mcloots/swe_performance](https://github.com/mcloots/swe_performance)** for all source code, Docker configuration and k6 scripts. Commands below run from that repository's root, containing `compose.yaml`, using PowerShell. Docker Desktop with Linux containers and a browser are sufficient. You need no local SDK, Node.js, PostgreSQL or k6. The first build needs internet access.
 
