@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PSR lesson catalogue</title>
+<style>
+body { font: 17px/1.6 system-ui; max-width: 850px; margin: 3rem auto; padding: 0 1rem; color: #172b42; }
+label, button, select, input { font: inherit; margin: .3rem; }
+li { margin-bottom: .6rem; } #status { background: #eef3f7; padding: 1rem; }
+</style>
+<h1>Lesson catalogue</h1>
+<p>Synthetic public records for the performance workshop. Open DevTools Network to inspect requests and cache headers.</p>
+<label>Language <select id="language"><option>nl</option><option>fr</option><option>de</option></select></label>
+<label>API cache <select id="mode"><option>none</option><option>memory</option></select></label>
+<label><input type="checkbox" id="local">Frontend data cache (10 seconds)</label>
+<p><button id="load">Load lessons</button><button id="refresh">Refresh from API</button></p>
+<form id="create">
+<label>New lesson title <input id="title" maxlength="120" required></label>
+<button id="submit">Create lesson</button>
+</form>
+<p id="status" role="status">Ready</p>
+<ol id="lessons"></ol>
+<script src="/app.v1.js" defer></script>
+</html>

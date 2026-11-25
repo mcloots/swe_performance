@@ -1,0 +1,55 @@
+name: psr-workshop
+
+x-api: &api
+  build: ./api
+  environment:
+    ConnectionStrings__Workshop: Host=db;Database=workshop;Username=workshop;Password=workshop;Maximum Pool Size=20;Timeout=3;Command Timeout=5
+    CacheTtlSeconds: ${CACHE_TTL_SECONDS:-30}
+    DemoQueryDelayMs: ${DEMO_QUERY_DELAY_MS:-0}
+    Logging__LogLevel__Default: Warning
+    Logging__LogLevel__Microsoft.Hosting.Lifetime: Information
+  depends_on:
+    db:
+      condition: service_healthy
+  cpus: 1.0
+  mem_limit: 512m
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: workshop
+      POSTGRES_PASSWORD: workshop
+      POSTGRES_DB: workshop
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./db/001-init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U workshop -d workshop]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    cpus: 1.0
+    mem_limit: 512m
+
+  api:
+    <<: *api
+    ports: ["127.0.0.1:53120:53120"]
+
+  api2:
+    <<: *api
+    profiles: [scale]
+    ports: ["127.0.0.1:53121:53120"]
+
+  k6:
+    image: grafana/k6:1.4.2
+    profiles: [test]
+    volumes:
+      - ./k6:/scripts:ro
+      - ./results:/results
+    environment:
+      BASE_URL: http://api:53120
+    entrypoint: [k6]
+
+volumes:
+  pgdata:
