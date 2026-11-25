@@ -10,10 +10,16 @@ Choose a test type from the risk you want to investigate. Define a workload, dis
 
 | Course layer | Implementation | Work avoided on a hit |
 | --- | --- | --- |
-| Browser HTTP cache | Immutable, versioned `app.v1.js` | Downloading the same JavaScript |
+| Browser HTTP cache | Immutable `app.v1.js`; Angular uses hashed bundles plus hosting cache headers | Downloading the same JavaScript/CSS |
 | Frontend data cache | Optional 10-second JavaScript Map | Repeating an API request |
 | API memory | `IMemoryCache`, `cache=memory` | Executing the list query in one API copy |
 | CDN / edge | Discussion exercise; no external CDN deployed | Transferring public files from a distant origin |
+
+### Browser HTTP caching in Angular
+
+In an Angular project, `ng build --configuration production --output-hashing=all` creates versioned bundles. Configure hosting to send `Cache-Control: public, max-age=31536000, immutable` for public hashed bundles and `Cache-Control: no-cache` for `index.html`. Check emitted filenames before applying immutable headers to copied assets. Angular creates the hashes; the webserver sets headers; the browser caches files. See [Angular build options](https://angular.dev/cli/build).
+
+`HttpClient` data sharing in an Angular service needs separate expiry/invalidation rules. An optional Angular service worker adds another cache layer through `assetGroups`/`dataGroups`; inspect Cache Storage separately from the HTTP cache. See [Angular service-worker configuration](https://angular.dev/ecosystem/service-workers/config). The supplied demo uses plain JavaScript and has no Angular service worker.
 
 Records are **public synthetic lessons**, in NL/FR/DE. There is no authentication or class authorization. A private catalogue must authorize each request and scope its keys appropriately; a key containing `scope-public` does not implement permissions.
 
