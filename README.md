@@ -1,33 +1,8 @@
-# Workshop: performance testing and caching with Docker and k6
+# Performance testing with Docker and k6
 
-Test a standalone lesson catalogue with **GET records** and **POST records**. Docker Compose runs PostgreSQL, a .NET 10 API and k6. Distinguish load, stress, spike and soak testing; compare latency, correctness, resources and caching, then check freshness and independent API caches.
+This project has a small API that stores lessons. Use **GET** to read lessons and **POST** to add one. Docker starts the API and PostgreSQL. It also runs the k6 tests.
 
-Commands below run from this repository's root, containing `compose.yaml`, using PowerShell. Docker Desktop with Linux containers and a browser are sufficient. You need no local SDK, Node.js, PostgreSQL or k6. The first build needs internet access.
-
-## Learning goals and course connection
-
-Choose a test type from the risk you want to investigate. Define a workload, distinguish request rate from virtual users, interpret p50/p95/p99, validate responses, and assess caching using server evidence. Explain cache keys, expiry, invalidation, access scope and recovery behaviour.
-
-| Course layer | Implementation | Work avoided on a hit |
-| --- | --- | --- |
-| Browser HTTP cache | Immutable `app.v1.js`; Angular uses hashed bundles plus hosting cache headers | Downloading the same JavaScript/CSS |
-| Frontend data cache | Optional 10-second JavaScript Map | Repeating an API request |
-| API memory | `IMemoryCache`, `cache=memory` | Executing the list query in one API copy |
-| CDN / edge | Discussion exercise; no external CDN deployed | Transferring public files from a distant origin |
-
-### Browser HTTP caching in Angular
-
-In an Angular project, `ng build --configuration production --output-hashing=all` creates versioned bundles. Configure hosting to send `Cache-Control: public, max-age=31536000, immutable` for public hashed bundles and `Cache-Control: no-cache` for `index.html`. Check emitted filenames before applying immutable headers to copied assets. Angular creates the hashes; the webserver sets headers; the browser caches files. See [Angular build options](https://angular.dev/cli/build).
-
-`HttpClient` data sharing in an Angular service needs separate expiry/invalidation rules. An optional Angular service worker adds another cache layer through `assetGroups`/`dataGroups`; inspect Cache Storage separately from the HTTP cache. See [Angular service-worker configuration](https://angular.dev/ecosystem/service-workers/config). The supplied demo uses plain JavaScript and has no Angular service worker.
-
-Records are **public synthetic lessons**, in NL/FR/DE. There is no authentication or class authorization. A private catalogue must authorize each request and scope its keys appropriately; a key containing `scope-public` does not implement permissions.
-
-Each exercise includes **possible problems and solutions**: first identify the signal, then choose one change and repeat the same workload. Proposed solutions and snippets are discussion material; only behaviour explicitly described as implemented exists in the supplied API. Snippets show the essential change and may require surrounding types/configuration.
-
-## Start and verify the stack
-
-Clone the workshop repository and open its root. If you already cloned it, open that directory and skip the first two commands:
+You need Docker Desktop, Git and a browser. Run these commands in PowerShell:
 
 ```powershell
 git clone https://github.com/mcloots/swe_performance.git
@@ -37,8 +12,57 @@ Invoke-RestMethod http://localhost:53120/api/health
 docker compose run --rm k6 run /scripts/verify.js
 ```
 
-Wait for health to return `status: ready`; retry it if the API is still starting. Compose checks PostgreSQL health; the API has no container health probe. `verify.js` checks contracts, cache hits, language/page separation and invalidation after POST. It adds two fixture rows. Fix failed checks before measuring load.
+The health request should return `ready`. If the API is still starting, try again. All k6 checks should pass.
 
+Open **http://localhost:53120** for the demo page. The database starts with 30,000 test lessons in Dutch, French and German. There is no login; use test data only.
+
+## Run a test
+
+Read lessons at 20 requests per second:
+
+```powershell
+docker compose run --rm k6 run -e TARGET=read -e RATE=20 -e DURATION=60s /scripts/load.js
 ```
 
-Add `-v` only for a destructive **workshop-only reset**. Reports in `results/` remain. The Compose project name is `psr-workshop`; avoid running multiple copies with that name on one engine. Major image tags receive updates: pre-pull/test before a classroom session and record image digests with measurements.
+Add lessons at 20 requests per second:
+
+```powershell
+docker compose run --rm k6 run -e TARGET=write -e ALLOW_WRITES=true -e RATE=20 -e DURATION=60s /scripts/load.js
+```
+
+The POST test adds records to the database.
+
+| Test setting | What it tests |
+| --- | --- |
+| `TEST_TYPE=load` | Normal traffic |
+| `TEST_TYPE=stress` | Slowly increase traffic above normal |
+| `TEST_TYPE=spike` | Send a sudden burst of traffic |
+| `TEST_TYPE=soak` | Keep sending normal traffic for a long time |
+
+Add one of these settings after `k6 run`. Load is the default. Soak runs for two hours unless you set `DURATION`. Stress and spike use stages in `k6/profiles.js`.
+
+## Try caching
+
+A cache keeps data so it can be reused:
+
+- Add `-e CACHE=memory` to use the API's saved lesson pages. The default is `CACHE=none`.
+- On the demo page, enable **Frontend data cache** to reuse data without another API request.
+- The browser can also keep the JavaScript file `app.v1.js` instead of downloading it again.
+
+### In Angular
+
+In an Angular project, run `ng build --configuration production --output-hashing=all`. Angular puts a hash in bundle filenames. Changed code gets a new filename.
+
+Set long browser cache headers for these public hashed files. Set `Cache-Control: no-cache` for `index.html` so the browser checks for an updated page. The webserver sets these headers, not an Angular component. See [Angular build options](https://angular.dev/cli/build).
+
+Keeping API data in an Angular service is a separate cache. Refresh that data after a change. An optional service worker adds another cache; it is not enabled in this demo.
+
+## Stop or reset
+
+Stop and keep the database:
+
+```powershell
+docker compose --profile scale down
+```
+
+Add `-v` to that command only if you want to delete the workshop database. The next start creates the original test records again.
